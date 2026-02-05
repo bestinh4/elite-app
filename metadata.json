@@ -1,0 +1,5 @@
+{
+  "name": "Chega+ Football Management",
+  "description": "An application for managing football teams, tracking player stats, and organizing matches. It features player lists, financial dashboards, scout rankings, and detailed athlete profiles.",
+  "requestFramePermissions": []
+}
