@@ -26,24 +26,29 @@ const App: React.FC = () => {
   const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(1);
 
   useEffect(() => {
-    const fetchPlayers = async () => {
+    const loadPlayers = async () => {
+        setIsLoading(true);
         try {
-            const playersCollection = collection(db, "players");
-            // Assuming 'rank' field exists for ordering
-            const q = query(playersCollection, orderBy("rank"));
-            const playerSnapshot = await getDocs(q);
-            const playerList = playerSnapshot.docs.map(doc => doc.data() as Player);
-            setPlayers(playerList);
+            const localPlayers = localStorage.getItem('players');
+            if (localPlayers) {
+                setPlayers(JSON.parse(localPlayers));
+            } else {
+                const playersCollection = collection(db, "players");
+                const q = query(playersCollection, orderBy("rank"));
+                const playerSnapshot = await getDocs(q);
+                const playerList = playerSnapshot.docs.map(doc => doc.data() as Player);
+                setPlayers(playerList);
+                localStorage.setItem('players', JSON.stringify(playerList));
+            }
         } catch (error) {
-            console.error("Error fetching players: ", error);
-            // Handle error, maybe set an error state to show in the UI
+            console.error("Error loading players: ", error);
         } finally {
             setIsLoading(false);
         }
     };
 
     if (currentPage !== 'Login') {
-        fetchPlayers();
+        loadPlayers();
     } else {
         setIsLoading(false);
     }
@@ -52,26 +57,39 @@ const App: React.FC = () => {
   const handlePlayerConfirm = async (playerId: number) => {
     const playerToUpdate = players.find(p => p.id === playerId);
     if (!playerToUpdate) return;
-    
-    // Optimistic UI update
+
     const updatedPlayers = players.map(p =>
       p.id === playerId ? { ...p, isConfirmed: !p.isConfirmed } : p
     );
     setPlayers(updatedPlayers);
+    localStorage.setItem('players', JSON.stringify(updatedPlayers));
 
-    // Update Firebase
     try {
-        // Document ID in Firestore is assumed to be the string version of the player's numeric ID
         const playerDocRef = doc(db, "players", String(playerId));
         await updateDoc(playerDocRef, {
             isConfirmed: !playerToUpdate.isConfirmed
         });
     } catch (error) {
-        console.error("Error updating player confirmation: ", error);
-        // Revert UI change on error
-        setPlayers(players); 
+        console.error("Error updating player confirmation in Firestore: ", error);
     }
   };
+  
+  const handleAddPlayer = (playerData: Omit<Player, 'id' | 'isConfirmed' | 'goals' | 'rank' | 'stats' | 'rating' | 'level'>) => {
+    const newPlayer: Player = {
+        ...playerData,
+        id: Date.now(),
+        isConfirmed: false,
+        goals: 0,
+        rank: players.length + 1,
+        rating: 75, // Default rating
+        stats: { pac: 70, sho: 70, pas: 70, dri: 70, def: 70, phy: 70 }, // Default stats
+        level: 'Pro',
+    };
+    const updatedPlayers = [...players, newPlayer];
+    setPlayers(updatedPlayers);
+    localStorage.setItem('players', JSON.stringify(updatedPlayers));
+  };
+
 
   const handleSelectPlayer = (playerId: number) => {
     setSelectedPlayerId(playerId);
@@ -80,7 +98,7 @@ const App: React.FC = () => {
   
   const handleSetPage = (page: Page) => {
     if (page === 'Login') {
-      setPlayers([]);
+      // Intentionally not clearing players to keep them on simple page navigation
     }
     setCurrentPage(page);
   }
@@ -103,6 +121,7 @@ const App: React.FC = () => {
             players={players}
             onPlayerConfirm={handlePlayerConfirm}
             setPage={handleSetPage}
+            onAddPlayer={handleAddPlayer}
           />
         );
       case 'Arena':

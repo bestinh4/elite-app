@@ -1,12 +1,68 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Page, Player } from '../types';
 
 interface PlayerListPageProps {
     players: Player[];
     onPlayerConfirm: (playerId: number) => void;
     setPage: (page: Page) => void;
+    onAddPlayer: (player: Omit<Player, 'id' | 'isConfirmed' | 'goals' | 'rank' | 'stats' | 'rating' | 'level'>) => void;
 }
+
+const AddPlayerModal: React.FC<{isOpen: boolean; onClose: () => void; onAdd: PlayerListPageProps['onAddPlayer']}> = ({ isOpen, onClose, onAdd }) => {
+    const [name, setName] = useState('');
+    const [position, setPosition] = useState('');
+    const [team, setTeam] = useState('');
+    const [avatarUrl, setAvatarUrl] = useState('');
+    const [jerseyNumber, setJerseyNumber] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!name || !position || !team) return;
+
+        onAdd({
+            name,
+            position,
+            team,
+            avatarUrl,
+            jerseyNumber: Number(jerseyNumber) || undefined,
+        });
+        
+        // Reset form and close
+        setName('');
+        setPosition('');
+        setTeam('');
+        setAvatarUrl('');
+        setJerseyNumber('');
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-surface-light dark:bg-surface-dark rounded-2xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4 animate-in fade-in-0 zoom-in-95" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-text-main dark:text-white">Add New Player</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+                        <span className="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Player Name" required className="w-full h-12 px-4 bg-background-light dark:bg-background-dark rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-primary focus:border-primary transition"/>
+                    <input type="text" value={position} onChange={e => setPosition(e.target.value)} placeholder="Position" required className="w-full h-12 px-4 bg-background-light dark:bg-background-dark rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-primary focus:border-primary transition"/>
+                    <input type="text" value={team} onChange={e => setTeam(e.target.value)} placeholder="Team" required className="w-full h-12 px-4 bg-background-light dark:bg-background-dark rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-primary focus:border-primary transition"/>
+                    <input type="url" value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="Avatar URL" className="w-full h-12 px-4 bg-background-light dark:bg-background-dark rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-primary focus:border-primary transition"/>
+                    <input type="number" value={jerseyNumber} onChange={e => setJerseyNumber(e.target.value)} placeholder="Jersey Number" className="w-full h-12 px-4 bg-background-light dark:bg-background-dark rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-primary focus:border-primary transition"/>
+                    <button type="submit" className="w-full h-12 bg-primary text-white font-bold rounded-lg shadow-lg shadow-primary/30 hover:bg-red-700 transition-colors active:scale-[0.98]">
+                        Add Player
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 
 const PlayerListItem: React.FC<{player: Player; onConfirm: (id: number) => void}> = ({ player, onConfirm }) => {
     const { id, name, position, level, jerseyNumber, isConfirmed, avatarUrl } = player;
@@ -68,7 +124,8 @@ const NavItem: React.FC<{icon: string; label: string; page: Page; setPage: (page
     );
 };
 
-export const PlayerListPage: React.FC<PlayerListPageProps> = ({ players, onPlayerConfirm, setPage }) => {
+export const PlayerListPage: React.FC<PlayerListPageProps> = ({ players, onPlayerConfirm, setPage, onAddPlayer }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const confirmedCount = players.filter(p => p.isConfirmed).length;
   const totalCount = players.length;
   const progress = totalCount > 0 ? (confirmedCount / totalCount) * 100 : 0;
@@ -118,9 +175,10 @@ export const PlayerListPage: React.FC<PlayerListPageProps> = ({ players, onPlaye
             
             <BottomNav setPage={setPage} activePage="PlayerList" />
 
-            <button onClick={() => alert('Add new player!')} className="absolute bottom-24 right-4 w-12 h-12 bg-white dark:bg-gray-700 text-primary shadow-lg rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-600 hover:scale-105 transition-transform z-10">
+            <button onClick={() => setIsModalOpen(true)} className="absolute bottom-24 right-4 w-12 h-12 bg-white dark:bg-gray-700 text-primary shadow-lg rounded-full flex items-center justify-center border border-gray-100 dark:border-gray-600 hover:scale-105 transition-transform z-30">
                 <span className="material-symbols-outlined">person_add</span>
             </button>
+            <AddPlayerModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onAdd={onAddPlayer} />
         </>
     );
 };
